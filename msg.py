@@ -24,6 +24,11 @@ def token_update():
         json.dump(d,f)
     return None
 
+def json_read():
+    json_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'secrets.json')
+    with open(json_path) as f:
+        d = json.load(f)
+    return d
 
 def wx_upload(file, filetype=None):
 
@@ -39,30 +44,30 @@ def wx_upload(file, filetype=None):
         filetype = 'file'
     filetype = '&type=' + filetype
 
-    json_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'secrets.json')
-    with open(json_path) as f:
-        d = json.load(f)
-    token = d['access_token']
+    token = json_read()['access_token']
 
-    url = 'https://qyapi.weixin.qq.com/cgi-bin/media/upload?access_token='
-    url = url + token + filetype
+    api = 'https://qyapi.weixin.qq.com/cgi-bin/media/upload?access_token='
+    url = api + token + filetype
 
     command = subprocess.run(['curl', '-F', 'media=@'+file, url], stdout=subprocess.PIPE)
     result=json.loads(command.stdout.decode('utf-8'))
     if result['errmsg'] == 'ok':
         return result
-    else:
+    while result['errmsg'] != 'ok':
         print('while uploading file, api returned'+result['errmsg']+'retrying...')
         sleep(3)
         token_update()
-        return wx_upload(file, filetype)
+        token = json_read()['access_token']
+        url = api + token + filetype
+        command = subprocess.run(['curl', '-F', 'media=@'+file, url], stdout=subprocess.PIPE)
+        result=json.loads(command.stdout.decode('utf-8'))
+    return result
 
 def wx_send_file(upload_result):
     print(upload_result)
     url = 'https://qyapi.weixin.qq.com/cgi-bin/message/send'
-    json_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'secrets.json')
-    with open(json_path) as f:
-        d = json.load(f)
+
+    d = json_read()
     token = {'access_token': d['access_token']}
 
     data = {
@@ -76,21 +81,18 @@ def wx_send_file(upload_result):
     r = requests.post(url, json=data, params=token)
     result=json.loads(r.text)
     print(r.text)
-    while (not r) or result['errmsg'] != 'ok':
+    while (not r):
         sleep(3)
         token_update()
-        with open(json_path) as f:
-            d = json.load(f)
-        token['access_token'] = d['access_token']
+        token['access_token'] = json_read()['access_token']
         r = requests.post(url, json=data, params=token)
-        result=json.loads(r.text)
+        result=json.loads(r.text) 
     return None
 
 def wx_send_msg(msg):
     url = 'https://qyapi.weixin.qq.com/cgi-bin/message/send'
-    json_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'secrets.json')
-    with open(json_path) as f:
-        d = json.load(f)
+
+    d = json_read()
     token = {'access_token': d['access_token']}
 
     data = {
@@ -105,9 +107,7 @@ def wx_send_msg(msg):
     while (not r) or result['errmsg'] != 'ok':
         sleep(3)
         token_update()
-        with open(json_path) as f:
-            d = json.load(f)
-        token['access_token'] = d['access_token']
+        token['access_token'] = json_read()['access_token']
         r = requests.post(url, json=data, params=token)
         result=json.loads(r.text)
     return None
