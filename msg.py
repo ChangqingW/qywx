@@ -14,10 +14,10 @@ def token_update():
     required_params = ('corpid', 'corpsecret')
     r = requests.get(url, params = { k:d[k] for k in required_params })
     while not r:
-        print('error\nretrying...', end='')
+        print('error\nretrying again...', end='')
         sleep(3)
         r = requests.get(url, params = { k:d[k] for k in required_params })
-    print('success!')
+    print('success!\n')
     token = json.loads(r.text)['access_token']
     d.update({'access_token': token})
     with open(json_path, 'w') as f:
@@ -50,21 +50,23 @@ def wx_upload(file, filetype=None):
     url = api + token + filetype
 
     command = subprocess.run(['curl', '-F', 'media=@'+file, url], stdout=subprocess.PIPE)
+    print()
     result=json.loads(command.stdout.decode('utf-8'))
     if result['errmsg'] == 'ok':
         return result
     while result['errmsg'] != 'ok':
-        print('while uploading file, api returned'+result['errmsg']+'retrying...')
+        print('while uploading file, api returned '+result['errmsg']+'\nRetrying...\n')
         sleep(3)
         token_update()
         token = json_read()['access_token']
         url = api + token + filetype
         command = subprocess.run(['curl', '-F', 'media=@'+file, url], stdout=subprocess.PIPE)
+        print()
         result=json.loads(command.stdout.decode('utf-8'))
     return result
 
 def wx_send_file(upload_result):
-    print(upload_result)
+    print(upload_result, end='\n\n')
     url = 'https://qyapi.weixin.qq.com/cgi-bin/message/send'
 
     d = json_read()
@@ -80,7 +82,7 @@ def wx_send_file(upload_result):
         "media_id" : upload_result['media_id']}}
     r = requests.post(url, json=data, params=token)
     result=json.loads(r.text)
-    print(r.text)
+    print(r.text, end='\n\n')
     while (not r):
         sleep(3)
         token_update()
@@ -103,7 +105,7 @@ def wx_send_msg(msg):
         "content" : msg}}
     r = requests.post(url, json=data, params=token)
     result=json.loads(r.text)
-    print(r.text)
+    print(r.text, end='\n\n')
     while (not r) or result['errmsg'] != 'ok':
         sleep(3)
         token_update()
