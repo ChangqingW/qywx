@@ -74,7 +74,7 @@ def wx_send_file(upload_result):
 
     data = {
         "toparty" : "1" ,
-        "msgtype" : "image",
+        "msgtype" : upload_result["type"],
         "agentid" : d["agentid"],
         # video
         #"title" : "Title",
