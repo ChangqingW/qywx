@@ -1,5 +1,6 @@
 import json
 import sys
+import argparse
 import subprocess
 import requests
 from time import sleep
@@ -114,14 +115,38 @@ def wx_send_msg(msg):
         result=json.loads(r.text)
     return None
 
+parser = argparse.ArgumentParser(description="Send file or message via Wechat bot")
+parser.add_argument('-i', '--file_as_text', action='store_true', help='send text file as text message')
+parser.add_argument('-H', '--head', type=int, help='send first H lines of a file')
+parser.add_argument('-t', '--tail', type=int, help='send last t lines of a file')
+parser.add_argument('input', type=str, nargs='+', help="text or path to file")
+args = parser.parse_args()
+
 if __name__ == "__main__":
-    assert len(sys.argv) > 1, 'no message provided'
-    if len(sys.argv) == 2:
-        if os.path.isfile(sys.argv[1]):
-            wx_send_file(wx_upload(sys.argv[1]))
-        elif os.path.isfile(sys.argv[1].replace('\\','')):
-            wx_send_file(wx_upload(sys.argv[1].replace('\\','')))
+    if (args.file_as_text or args.head or args.tail):
+        if os.path.isfile(args.input[0]):
+            file = args.input[0]
+        elif os.path.isfile(args.input[0].replace('\\','')):
+            file = args.input[0].replace('\\','')
         else:
-            wx_send_msg(sys.argv[1])
+            raise FileNotFoundError("Cannot open file")
+        
+        with open(file) as fp:
+            lines = fp.readlines()
+        if args.head:
+            lines = lines[:args.head]
+        if args.tail:
+            lines = lines[-args.tail:]
+        text = ''.join(lines)
+            
+        wx_send_msg(text)
+
+    elif len(args.input) == 1:
+        if os.path.isfile(args.input[0]):
+            wx_send_file(wx_upload(args.input[0]))
+        elif os.path.isfile(args.input[0].replace('\\','')):
+            wx_send_file(wx_upload(args.input[0].replace('\\','')))
+        else:
+            wx_send_msg(args.input[0])
     else:
-        wx_send_msg( ' '.join(sys.argv[1:]) )
+        wx_send_msg( ' '.join(args.input) )
